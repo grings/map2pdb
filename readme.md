@@ -4,6 +4,12 @@
 
 Copyright (c) 2021 Anders Melander
 
+### map2pdb has moved to Github: https://github.com/andersmelander/map2pdb
+
+This clone will no longer be maintained.
+
+------
+
 **map2pdb** is a tool used to convert the MAP files produced by the Delphi and C++ Builder compilers to Microsoft PDB files for use in [tools that support that format](#markdown-header-tools-that-consume-pdb-files).
 
 ![Profiling a Delphi application in VTune](Info/vtune_delphi.png)
