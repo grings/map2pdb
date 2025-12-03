@@ -835,11 +835,21 @@ begin
     DBIStreamHeader.Flags := 0;
     // - The LLVM docs state we should use a CV_CPU_TYPE_e but then uses
     //   an IMAGE_FILE_HEADER.Machine value as an example.
-    // - dbg2pdg uses an IMAGE_FILE_HEADER value.
+    // - dbg2pdb uses an IMAGE_FILE_HEADER value.
     // - The Epoch linker uses an IMAGE_FILE_HEADER value.
+    // - Sentry requires that the Machine type should indicate the source
+    //   architecture. This is a bit of a problem since that isn't really
+    //   information supplied directly by the map file. It isn't really
+    //   relevant either...
+    //
+    // IMAGE_FILE_MACHINE_I386  = $14c;
     // IMAGE_FILE_MACHINE_AMD64 = $8664
     // CV_CPU_TYPE_e.CV_CFL_X64 = $D0
-    DBIStreamHeader.Machine := IMAGE_FILE_MACHINE_AMD64;
+    //
+    if (FDebugInfo.Architecture <> IMAGE_FILE_MACHINE_UNKNOWN) then
+      DBIStreamHeader.Machine := FDebugInfo.Architecture
+    else
+      DBIStreamHeader.Machine := IMAGE_FILE_MACHINE_AMD64;
 
     // Seek past the header. We will write it once the substreams has been written.
     var HeaderBookmark := Result.Writer.SaveBookmark;
