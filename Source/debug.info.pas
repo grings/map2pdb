@@ -617,7 +617,7 @@ begin
   FOrdered := TList<TDebugInfoSegment>.Create(TComparer<TDebugInfoSegment>.Construct(
     function(const A, B: TDebugInfoSegment): integer
     begin
-      Result := A.Index - B.Index;
+      Result := integer(A.Index) - integer(B.Index);
     end));
 end;
 
