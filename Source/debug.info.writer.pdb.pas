@@ -67,6 +67,7 @@ type
       StreamDBIGlobals: TMSFStream;
       StreamDBIPublics: TMSFStream;
       StreamDBISymbols: TMSFStream;
+      StreamDbgHeaderTypes: array[PDBDbgHeaderType] of TMSFStream;
     end;
 
     TModuleLayout = record
@@ -119,6 +120,7 @@ type
         function EmitStringTable(Writer: TBinaryBlockWriter; Strings: TStrings): Cardinal;
       function EmitDBISubstreamDebugHeader(Writer: TBinaryBlockWriter): Cardinal;
     function WriteIPIStream: TMSFStream; // Verified
+    procedure WriteOptionalStreams;
     procedure WriteSymbols;
     procedure WriteDBIModuleSymbols; // Verified
       function EmitDBIModuleSymbol(Writer: TBinaryBlockWriter; Module: TDebugInfoModule; var ModuleLayout: TModuleLayout): Cardinal;
@@ -791,18 +793,11 @@ function TDebugInfoPdbWriter.EmitDBISubstreamDebugHeader(Writer: TBinaryBlockWri
 begin
   Result := Writer.Position;
 
-  // We don't provide any of the optional debug streams yet
   for var HeaderType := Low(PDBDbgHeaderType) to High(PDBDbgHeaderType) do
-    Writer.Write(Word(TMSFStream.NullStreamIndex));
-
-  // TODO : I believe the SectionHdr stream contains the segment names
-  (*
-  for var Segment in FDebugInfo.Segments do
-  begin
-    xxx.Add(Segment.SegClassName);
-    xxx.Add(Segment.Name);
-  end;
-  *)
+    if (FLayout.StreamDbgHeaderTypes[HeaderType] <> nil) then
+      Writer.Write(FLayout.StreamDbgHeaderTypes[HeaderType].Index)
+    else
+      Writer.Write(Word(TMSFStream.NullStreamIndex));
 
   Result := Writer.Position - Result;
 end;
@@ -1443,6 +1438,54 @@ begin
 end;
 
 
+procedure TDebugInfoPdbWriter.WriteOptionalStreams;
+
+  function EmitSectionHdr: TMSFStream;
+  begin
+    Result := FFiler.AllocateStream;
+
+    Result.BeginStream;
+    begin
+
+      for var Section in FDebugInfo.Segments do
+      begin
+        var ImageSectionHeader := Default(TImageSectionHeader);
+
+        var Name := UTF8Encode(Section.Name);
+        if (Name <> '') then
+          Move(Name[1], ImageSectionHeader.Name, SizeOf(ImageSectionHeader.Name));
+        ImageSectionHeader.Misc.VirtualSize := Section.Size;
+        ImageSectionHeader.VirtualAddress := Section.Offset;
+        ImageSectionHeader.SizeOfRawData := (Section.Size + $FF) and (not $FF);
+        ImageSectionHeader.Characteristics := Section.Characteristics;
+
+        Result.Writer.Write<TImageSectionHeader>(ImageSectionHeader);
+      end;
+
+    end;
+    Result.EndStream;
+  end;
+
+begin
+  // Note: We don't provide all of the optional debug streams yet, and likely never will
+
+  for var HeaderType := Low(PDBDbgHeaderType) to High(PDBDbgHeaderType) do
+  begin
+    var Stream: TMSFStream;
+
+    case HeaderType of
+
+      PDBDbgHeaderType.SectionHdr:
+        Stream := EmitSectionHdr;
+
+    else
+      Stream := nil;
+    end;
+
+    FLayout.StreamDbgHeaderTypes[HeaderType] := Stream;
+  end;
+end;
+
 procedure TDebugInfoPdbWriter.WriteDBIModuleSymbols;
 
   procedure DoEmitModuleSymbols(Module: TDebugInfoModule);
@@ -2069,6 +2112,9 @@ begin
       Logger.Info('- Symbols stream');
       WriteSymbols;
 
+      // Write the optional debug header streams - they must be written before the DBI stream
+      Logger.Info('- Dbg header streams');
+      WriteOptionalStreams;
 
       // Write the DBI stream
       Logger.Info('- DBI stream');
