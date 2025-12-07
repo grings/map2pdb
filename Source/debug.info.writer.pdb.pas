@@ -1440,8 +1440,16 @@ end;
 
 procedure TDebugInfoPdbWriter.WriteOptionalStreams;
 
-  function EmitSectionHdr: TMSFStream;
+  function EmitSectionHeaders: TMSFStream;
   begin
+    // The inclusion of actual section headers has been disabled as,
+    // although it makes CVDUMP happy (it is able to dump the content)
+    // it also break VTune (it is unable to resolve symbols).
+
+    Result := nil;
+
+    (*
+
     Result := FFiler.AllocateStream;
 
     Result.BeginStream;
@@ -1464,6 +1472,7 @@ procedure TDebugInfoPdbWriter.WriteOptionalStreams;
 
     end;
     Result.EndStream;
+    *)
   end;
 
 begin
@@ -1476,7 +1485,7 @@ begin
     case HeaderType of
 
       PDBDbgHeaderType.SectionHdr:
-        Stream := EmitSectionHdr;
+        Stream := EmitSectionHeaders;
 
     else
       Stream := nil;
