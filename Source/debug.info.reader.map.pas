@@ -393,10 +393,17 @@ begin
 
         if (DebugInfo.Architecture = IMAGE_FILE_MACHINE_UNKNOWN) then
         begin
+          var Bits: integer;
           if (OffsetSize < 16) then
-            DebugInfo.Architecture := IMAGE_FILE_MACHINE_I386
-          else
+          begin
+            DebugInfo.Architecture := IMAGE_FILE_MACHINE_I386;
+            Bits := 32;
+          end else
+          begin
             DebugInfo.Architecture := IMAGE_FILE_MACHINE_AMD64;
+            Bits := 64;
+          end;
+          Logger.Debug('Executable architecture: %d-bit', [Bits]);
         end;
 
         n := SkipRequiredDelimiter(' ', Reader.LineBuffer, n, 'Missing segment/size delimiter');
