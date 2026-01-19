@@ -274,6 +274,11 @@ begin
     // Get the offset to the next module. This gives us the size of this one.
     DoContinue := ReadValue(Data, Size);
 
+    // For some reason, module sizes are occasionally negative. The reason or
+    // meaning of this is presently unknown. Seen with dcc32370.jdbg
+    if (Size < 0) then
+      Size := -Size;
+
     Logger.Debug('  Module[%6d]: %.8X (Size:%.4X) %s', [i, Offset, Size, Name]);
 
     if (not DoContinue) and (Size = MaxInt) then
