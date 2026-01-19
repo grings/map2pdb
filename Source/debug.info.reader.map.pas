@@ -45,7 +45,7 @@ type
     function HexToInt64(const s: string; var Offset: integer): Int64;
     function DecToInt32(const s: string; var Offset: integer): integer;
 
-    procedure ParseSegmentAndOffset(const s: string; var Index: integer; out SegmentID: Cardinal; out Offset: TDebugInfoOffset);
+    function ParseSegmentAndOffset(const s: string; var Index: integer; out SegmentID: Cardinal; out Offset: TDebugInfoOffset): integer;
     function GetSectionName(const Str: string; var Offset: integer): string;
 
     // Returned position is past last delimiter
@@ -77,7 +77,8 @@ implementation
 uses
   System.SysUtils,
   System.IOUtils,
-  System.Math;
+  System.Math,
+  Winapi.Windows;
 
 // -----------------------------------------------------------------------------
 
@@ -375,8 +376,9 @@ begin
 
       var LegacyMapFile := False;
 
-      // Delphi:
+      // Delphi 32-bit:
       // " 0001:00401000 000F47FCH .text                   CODE"
+      // Delphi 64-bit:
       // " 0001:0000000000301000 001FD57CH .text           CODE"
       //
       // C++ Builder:
@@ -387,7 +389,22 @@ begin
 
         var SegmentID: Cardinal;
         var Offset: TDebugInfoOffset;
-        ParseSegmentAndOffset(Reader.LineBuffer, n, SegmentID, Offset);
+        var OffsetSize := ParseSegmentAndOffset(Reader.LineBuffer, n, SegmentID, Offset);
+
+        if (DebugInfo.Architecture = IMAGE_FILE_MACHINE_UNKNOWN) then
+        begin
+          var Bits: integer;
+          if (OffsetSize < 16) then
+          begin
+            DebugInfo.Architecture := IMAGE_FILE_MACHINE_I386;
+            Bits := 32;
+          end else
+          begin
+            DebugInfo.Architecture := IMAGE_FILE_MACHINE_AMD64;
+            Bits := 64;
+          end;
+          Logger.Debug('Executable architecture: %d-bit', [Bits]);
+        end;
 
         n := SkipRequiredDelimiter(' ', Reader.LineBuffer, n, 'Missing segment/size delimiter');
         // C++ Builder size is a 32-bit value specified with 9 hex digits so we need to read is as a 64-bit value
@@ -950,7 +967,7 @@ end;
 
 // -----------------------------------------------------------------------------
 
-procedure TDebugInfoMapReader.ParseSegmentAndOffset(const s: string; var Index: integer; out SegmentID: Cardinal; out Offset: TDebugInfoOffset);
+function TDebugInfoMapReader.ParseSegmentAndOffset(const s: string; var Index: integer; out SegmentID: Cardinal; out Offset: TDebugInfoOffset): integer;
 begin
   SegmentID := HexToInt32(s, Index);
 
@@ -958,7 +975,12 @@ begin
     LineLogger.Error('Missing segment/offset separator');
 
   Inc(Index);
+  Result := Index;
   Offset := HexToInt64(s, Index);
+
+  // Return length of offset text; We need it to determine if the map file
+  // was produced for a 32- or 64-bit application.
+  Result := Index - Result;
 end;
 
 // -----------------------------------------------------------------------------

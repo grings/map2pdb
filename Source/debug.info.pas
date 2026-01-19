@@ -288,6 +288,7 @@ type
     FSegments: TDebugInfoSegments;
     FModules: TDebugInfoModules;
     FSourceFiles: TDebugInfoSourceFiles;
+    FArchitecture: Word;
   public
     constructor Create;
     destructor Destroy; override;
@@ -295,6 +296,7 @@ type
     property Segments: TDebugInfoSegments read FSegments;
     property Modules: TDebugInfoModules read FModules;
     property SourceFiles: TDebugInfoSourceFiles read FSourceFiles;
+    property Architecture: Word read FArchitecture write FArchitecture;
   end;
 
 type
@@ -316,6 +318,7 @@ begin
   FSegments := TDebugInfoSegments.Create;
   FModules := TDebugInfoModules.Create(Self);
   FSourceFiles := TDebugInfoSourceFiles.Create;
+  FArchitecture := IMAGE_FILE_MACHINE_UNKNOWN;
 end;
 
 destructor TDebugInfo.Destroy;
